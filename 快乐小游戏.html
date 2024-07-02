@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小游戏</title>
+    <style>
+        /* 设置页面基本样式 */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url('fengjing.jpg'); /* 背景图片路径 */
+            background-size: cover;
+            background-position: center;
+            color: #fff;
+        }
+        /* 设置游戏容器样式 */
+        #gameContainer {
+            width: 300px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+        }
+        /* 设置输入框、选择框和按钮的样式 */
+        #gameContainer input, #gameContainer select, #gameContainer button {
+            margin: 10px 0;
+            width: 100%;
+            padding: 5px;
+            background-color: #ffa800;
+            color: #000;
+        }
+        /* 设置反应测试按钮的样式 */
+        #reactionButton {
+            display: none;
+            background-color: #ffa800;
+            color: #000;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+        }
+        /* 设置避开障碍物游戏画布的样式 */
+        #dodgeGameCanvas {
+            display: none;
+            background-color: #000;
+            border: 1px solid #fff;
+        }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <h3>选择游戏</h3>
+    <!-- 游戏选择框 -->
+    <select id="gameSelector" onchange="loadGame()">
+        <option value="number">猜数字</option>
+        <option value="reaction">反应测试</option>
+        <option value="dodge">避开障碍物</option>
+    </select>
+    <!-- 游戏内容容器 -->
+    <div id="gameContent"></div>
+    <!-- 避开障碍物游戏画布 -->
+    <canvas id="dodgeGameCanvas" width="300" height="400"></canvas>
+</div>
+
+<script>
+    // 定义不同的游戏内容
+    const games = {
+        number: {
+            content: `
+                <p>猜一个 1 到 100 的数字：</p>
+                <input type="number" id="guessInput" placeholder="输入你的猜测">
+                <button onclick="checkNumberGuess()">猜测</button>
+                <p id="message"></p>
+            `
+        },
+        reaction: {
+            content: `
+                <p>点击开始按钮，等待按钮变绿，然后尽快点击它。</p>
+                <button id="startButton" onclick="startReactionTest()">开始</button>
+                <button id="reactionButton" onclick="recordReactionTime()">点击!</button>
+                <p id="message"></p>
+            `
+        },
+        dodge: {
+            content: `
+                <p>避开障碍物游戏</p>
+                <button onclick="startDodgeGame()">开始游戏</button>
+            `
+        }
+    };
+
+    // 定义变量
+    let randomNumber;  // 随机数
+    let attempts;  // 尝试次数
+    let startTime;  // 开始时间
+    let dodgeGameInterval;  // 避开障碍物游戏的间隔
+
+    // 加载游戏内容
+    function loadGame() {
+        const selectedGame = document.getElementById('gameSelector').value;
+        document.getElementById('gameContent').innerHTML = games[selectedGame].content;
+        document.getElementById('dodgeGameCanvas').style.display = 'none';
+        clearInterval(dodgeGameInterval);  // 清除游戏间隔
+
+        if (selectedGame === 'number') {
+            randomNumber = Math.floor(Math.random() * 100) + 1;  // 生成随机数
+            attempts = 0;  // 重置尝试次数
+        }
+    }
+
+    // 检查猜数字游戏的答案
+    function checkNumberGuess() {
+        const userGuess = document.getElementById('guessInput').value;
+        attempts++;
+        let message = '';
+
+        if (userGuess == randomNumber) {
+            message = `恭喜你！你在 ${attempts} 次尝试中猜对了。`;
+        } else if (userGuess > randomNumber) {
+            message = '太高了！再试一次。';
+        } else {
+            message = '太低了！再试一次。';
+        }
+
+        document.getElementById('message').innerText = message;
+    }
+
+    // 开始反应测试游戏
+    function startReactionTest() {
+        document.getElementById('message').innerText = "等待按钮变绿...";
+        document.getElementById('startButton').style.display = 'none';
+        const reactionButton = document.getElementById('reactionButton');
+        reactionButton.style.display = 'block';
+        reactionButton.style.backgroundColor = '#ffa800';
+        setTimeout(() => {
+            reactionButton.style.backgroundColor = 'green';
+            startTime = new Date().getTime();
+        }, Math.floor(Math.random() * 3000) + 2000);  // 随机延迟
+    }
+
+    // 记录反应时间
+    function recordReactionTime() {
+        if (document.getElementById('reactionButton').style.backgroundColor === 'green') {
+            const reactionTime = new Date().getTime() - startTime;
+            document.getElementById('message').innerText = `你的反应时间是 ${reactionTime} 毫秒。`;
+            document.getElementById('reactionButton').style.display = 'none';
+            document.getElementById('startButton').style.display = 'block';
+        } else {
+            document.getElementById('message').innerText = "别急，等按钮变绿再点击!";
+        }
+    }
+
+    // 开始避开障碍物游戏
+    function startDodgeGame() {
+        document.getElementById('dodgeGameCanvas').style.display = 'block';
+        const canvas = document.getElementById('dodgeGameCanvas');
+        const ctx = canvas.getContext('2d');
+        let player = { x: canvas.width / 2, y: canvas.height - 30, width: 20, height: 20 };
+        let obstacles = [];
+        let obstacleFrequency = 50;  // 障碍物出现频率
+        let frameCount = 0;
+        let gameOver = false;
+
+        // 玩家移动控制
+        document.addEventListener('keydown', movePlayer);
+
+        function movePlayer(e) {
+            if (e.key === 'ArrowLeft' && player.x > 0) {
+                player.x -= 20;
+            }
+            if (e.key === 'ArrowRight' && player.x < canvas.width - player.width) {
+                player.x += 20;
+            }
+        }
+
+        // 创建障碍物
+        function createObstacle() {
+            let x = Math.random() * (canvas.width - 20);
+            obstacles.push({ x: x, y: 0, width: 20, height: 20 });
+        }
+
+        // 更新障碍物位置
+        function updateObstacles() {
+            for (let i = 0; i < obstacles.length; i++) {
+                obstacles[i].y += 2;
+                if (obstacles[i].y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    i--;
+                }
+            }
+        }
+
+        // 检查碰撞
+        function checkCollision() {
+            for (let i = 0; i < obstacles.length; i++) {
+                if (player.x < obstacles[i].x + obstacles[i].width &&
+                    player.x + player.width > obstacles[i].x &&
+                    player.y < obstacles[i].y + obstacles[i].height &&
+                    player.y + player.height > obstacles[i].y) {
+                    gameOver = true;
+                }
+            }
+        }
+
+        // 绘制玩家和障碍物
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.fillStyle = 'red';
+            for (let i = 0; i < obstacles.length; i++) {
+                ctx.fillRect(obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height);
+            }
+        }
+
+        // 游戏循环
+        function gameLoop() {
+            if (gameOver) {
+                clearInterval(dodgeGameInterval);
+                document.getElementById('message').innerText = "游戏结束!";
+                return;
+            }
+            frameCount++;
+            if (frameCount % obstacleFrequency === 0) {
+                createObstacle();
+            }
+            update
+            updateObstacles();
+            checkCollision();
+            draw();
+        }
+
+        // 设置游戏循环间隔
+        dodgeGameInterval = setInterval(gameLoop, 20);
+    }
+
+    // 初始化加载第一个游戏
+    loadGame();
+</script>
+
+</body>
+</html>
